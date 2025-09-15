@@ -14,5 +14,12 @@
   "observability": {
     "enabled": true
   },
-  "upload_source_maps": true
+  "upload_source_maps": true,
+  "hyperdrive": [
+    {
+      "binding": "HYPERDRIVE",
+      "id": "7a5048757e8c4bd2a878a23e183b3b86",
+      "localConnectionString": "postgresql://neondb_owner:npg_8RzObNjBJl3y@ep-hidden-mountain-adzqzboy-pooler.c-2.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
+    }
+  ]
 }

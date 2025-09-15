@@ -1,0 +1,6 @@
+{
+  "/api/resources/route": "app/api/resources/route.js",
+  "/api/categories/route": "app/api/categories/route.js",
+  "/admin/categories/page": "app/admin/categories/page.js",
+  "/admin/resources/page": "app/admin/resources/page.js"
+}
