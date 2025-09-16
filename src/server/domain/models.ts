@@ -1,14 +1,14 @@
 export type Status = "NORMAL" | "VOID";
 
 export interface Category {
-  id: number;
+  id: string;
   name: string;
   description: string | null;
   status: Status;
 }
 
 export interface Resource {
-  id: number;
+  id: string;
   title: string;
   icon: string | null;
   url: string;

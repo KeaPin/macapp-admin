@@ -49,7 +49,10 @@ export async function PUT(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
-    const id = Number(searchParams.get("id"));
+    const id = searchParams.get("id");
+    if (!id || id.trim().length === 0) {
+      return jsonError(new Error("Category ID is required"), 400);
+    }
     const { env } = getCloudflareContext();
     await removeCategory(env as unknown as EnvWithHyperdrive, id);
     return jsonOk({ ok: true });

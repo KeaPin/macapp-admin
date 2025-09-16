@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 
-type Category = { id: number; name: string; description: string | null; status: string };
+type Category = { id: string; name: string; description: string | null; status: string };
 
 export default function CategoriesPage() {
   const [items, setItems] = useState<Category[]>([]);
@@ -60,12 +60,12 @@ export default function CategoriesPage() {
     await load(1, pageSize, q, statusFilter);
   }
 
-  async function deleteCategory(id: number) {
+  async function deleteCategory(id: string) {
     await fetch(`/api/categories?id=${id}`, { method: "DELETE" });
     await load();
   }
 
-  async function toggleStatus(id: number, currentStatus: string) {
+  async function toggleStatus(id: string, currentStatus: string) {
     const newStatus = currentStatus === "NORMAL" ? "VOID" : "NORMAL";
     await fetch("/api/categories", {
       method: "PUT",

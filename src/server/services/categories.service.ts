@@ -14,7 +14,7 @@ export async function listCategories(
   return { items, total, page, pageSize };
 }
 
-export async function createCategory(env: EnvWithHyperdrive, input: CategoryCreateInput): Promise<number> {
+export async function createCategory(env: EnvWithHyperdrive, input: CategoryCreateInput): Promise<string> {
   const name = input.name.trim();
   assert(name.length > 0, 400, "name is required");
   const description = input.description ?? null;
@@ -23,13 +23,12 @@ export async function createCategory(env: EnvWithHyperdrive, input: CategoryCrea
 }
 
 export async function modifyCategory(env: EnvWithHyperdrive, input: CategoryUpdateInput): Promise<void> {
-  const id = Number(input.id);
-  assert(Number.isInteger(id) && id > 0, 400, "invalid id");
-  await updateCategory(env, { id, name: input.name, description: input.description ?? undefined, status: input.status });
+  assert(typeof input.id === 'string' && input.id.length > 0, 400, "invalid id");
+  await updateCategory(env, { id: input.id, name: input.name, description: input.description ?? undefined, status: input.status });
 }
 
-export async function removeCategory(env: EnvWithHyperdrive, id: number): Promise<void> {
-  assert(Number.isInteger(id) && id > 0, 400, "invalid id");
+export async function removeCategory(env: EnvWithHyperdrive, id: string): Promise<void> {
+  assert(typeof id === 'string' && id.length > 0, 400, "invalid id");
   await deleteCategory(env, id);
 }
 

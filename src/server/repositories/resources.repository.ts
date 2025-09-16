@@ -5,10 +5,10 @@ export type ResourceStatus = "NORMAL" | "VOID";
 
 export async function findResourceById(
   env: EnvWithHyperdrive,
-  id: number
+  id: string
 ): Promise<Resource | null> {
   const detail = await runQuery<{
-    id: number;
+    id: string;
     title: string;
     url: string;
     category_id: number | null;
@@ -31,33 +31,21 @@ export async function findResourceById(
           trim(category_id) AS cid
         FROM resource_category
         ORDER BY trim(resource_id), create_time DESC NULLS LAST
-      ),
-      u AS (
-        SELECT 
-          r.id::double precision            AS id,
-          r.title                           AS title,
-          r.url                             AS url,
-          r.category_id::double precision   AS category_id,
-          r.synopsis                        AS synopsis,
-          r.status                          AS status,
-          r.icon                            AS icon
-        FROM resources r
-        UNION ALL
-        SELECT 
-          (re.id)::double precision                                            AS id,
-          re.name                                                              AS title,
-          COALESCE(rl.link, '#')                                               AS url,
-          CASE WHEN rc.cid ~ '^[0-9]+$' THEN (rc.cid)::double precision ELSE NULL END AS category_id,
-          NULL::text                                                           AS synopsis,
-          COALESCE(re.status, 'NORMAL')                                         AS status,
-          re.icon                                                               AS icon
-        FROM resource re
-        LEFT JOIN rl ON rl.resource_id = re.id
-        LEFT JOIN rc ON rc.rid = re.id
       )
-      SELECT id, title, url, category_id, synopsis, status, icon
-      FROM u
-      WHERE id = $1
+      SELECT 
+        re.id                                                                AS id,
+        re.name                                                              AS title,
+        COALESCE(rl.link, '#')                                               AS url,
+        CASE WHEN rc.cid ~ '^[0-9]+$' THEN 
+          CASE WHEN rc.cid::bigint <= 2147483647 THEN rc.cid::integer ELSE NULL END 
+          ELSE NULL END    AS category_id,
+        NULL::text                                                           AS synopsis,
+        COALESCE(re.status, 'NORMAL')                                         AS status,
+        re.icon                                                               AS icon
+      FROM resource re
+      LEFT JOIN rl ON rl.resource_id = re.id
+      LEFT JOIN rc ON rc.rid = re.id
+      WHERE re.id = $1
       LIMIT 1
     `,
     [id]
@@ -66,7 +54,7 @@ export async function findResourceById(
   const row = detail.rows[0];
   if (!row) return null;
   return {
-    id: Number(row.id),
+    id: String(row.id),
     title: row.title,
     url: row.url,
     categoryId: row.category_id ?? null,
@@ -79,7 +67,7 @@ export async function findResourceById(
 export async function findPagedResources(
   env: EnvWithHyperdrive,
   params: { page: number; pageSize: number; q?: string; status?: ResourceStatus | null }
-): Promise<{ items: Array<{ id: number; title: string; category_names: string[]; icon: string | null; status: ResourceStatus }>; total: number }> {
+): Promise<{ items: Array<{ id: string; title: string; category_names: string[]; icon: string | null; status: ResourceStatus }>; total: number }> {
   const page = Number.isFinite(params.page) && params.page > 0 ? Math.floor(params.page) : 1;
   const pageSize = Number.isFinite(params.pageSize) && params.pageSize > 0 ? Math.min(Math.floor(params.pageSize), 100) : 10;
   const offset = (page - 1) * pageSize;
@@ -108,7 +96,7 @@ export async function findPagedResources(
     ),
     u AS (
       SELECT 
-        r.id::double precision            AS id,
+        r.id::text                        AS id,
         trim(r.id::text)                  AS id_text,
         r.title                           AS title,
         r.url                             AS url,
@@ -119,7 +107,7 @@ export async function findPagedResources(
       FROM resources r
       UNION ALL
       SELECT 
-        (re.id)::double precision                                            AS id,
+        re.id::text                                                          AS id,
         trim(re.id::text)                                                    AS id_text,
         re.name                                                              AS title,
         COALESCE(rl.link, '#')                                               AS url,
@@ -196,7 +184,7 @@ export async function findPagedResources(
   `;
 
   const itemsResult = await runQuery<{
-    id: number;
+    id: string;
     title: string;
     category_names: string[] | null;
     icon: string | null;
@@ -204,7 +192,7 @@ export async function findPagedResources(
   }>(env, itemsSql, [qParam, statusParam, pageSize, offset]);
 
   const items = itemsResult.rows.map((row) => ({
-    id: Number(row.id),
+    id: String(row.id),
     title: row.title,
     category_names: Array.isArray(row.category_names) ? (row.category_names.filter((x) => typeof x === "string") as string[]) : [],
     icon: row.icon,
@@ -217,32 +205,30 @@ export async function findPagedResources(
 export async function insertResource(
   env: EnvWithHyperdrive,
   data: { title: string; url: string; categoryId: number | null; synopsis: string | null; icon?: string | null; status: ResourceStatus }
-): Promise<number> {
-  const result = await runQuery<{ id: number }>(
+): Promise<string> {
+  const result = await runQuery<{ id: string }>(
     env,
     `INSERT INTO resources(title, url, category_id, synopsis, icon, status) VALUES($1, $2, $3, $4, $5, $6) RETURNING id`,
     [data.title, data.url, data.categoryId, data.synopsis, data.icon ?? null, data.status]
   );
-  return result.rows[0].id;
+  return String(result.rows[0].id);
 }
 
 export async function updateResource(
   env: EnvWithHyperdrive,
-  data: { id: number; title?: string; url?: string; categoryId?: number | null; synopsis?: string | null; icon?: string | null; status?: ResourceStatus }
+  data: { id: string; title?: string; url?: string; categoryId?: number | null; synopsis?: string | null; icon?: string | null; status?: ResourceStatus }
 ): Promise<void> {
   const fields: string[] = [];
   const values: unknown[] = [];
+  
+  // 字段映射：前端字段 -> 数据库字段
   if (data.title !== undefined) {
-    fields.push(`title = $${fields.length + 1}`);
+    fields.push(`name = $${fields.length + 1}`);  // title -> name
     values.push(data.title);
   }
   if (data.url !== undefined) {
-    fields.push(`url = $${fields.length + 1}`);
+    fields.push(`app_url = $${fields.length + 1}`);  // url -> app_url
     values.push(data.url);
-  }
-  if (data.categoryId !== undefined) {
-    fields.push(`category_id = $${fields.length + 1}`);
-    values.push(data.categoryId);
   }
   if (data.synopsis !== undefined) {
     fields.push(`synopsis = $${fields.length + 1}`);
@@ -256,13 +242,28 @@ export async function updateResource(
     fields.push(`status = $${fields.length + 1}`);
     values.push(data.status);
   }
+  
   if (fields.length === 0) return;
   values.push(data.id);
-  await runQuery(env, `UPDATE resources SET ${fields.join(", ")}, updated_at = now() WHERE id = $${values.length}` as string, values);
+  await runQuery(env, `UPDATE resource SET ${fields.join(", ")} WHERE id = $${values.length}` as string, values);
+  
+  // categoryId需要单独处理，因为它存储在关联表中
+  if (data.categoryId !== undefined) {
+    // 先删除现有的分类关联
+    await runQuery(env, `DELETE FROM resource_category WHERE resource_id = $1`, [data.id]);
+    
+    // 如果有新的分类ID，添加关联
+    if (data.categoryId !== null) {
+      await runQuery(env, 
+        `INSERT INTO resource_category (resource_id, category_id, create_time) VALUES ($1, $2, now())`, 
+        [data.id, data.categoryId.toString()]
+      );
+    }
+  }
 }
 
-export async function deleteResource(env: EnvWithHyperdrive, id: number): Promise<void> {
-  await runQuery(env, `DELETE FROM resources WHERE id = $1`, [id]);
+export async function deleteResource(env: EnvWithHyperdrive, id: string): Promise<void> {
+  await runQuery(env, `DELETE FROM resource WHERE id = $1`, [id]);
 }
 
 

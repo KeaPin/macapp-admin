@@ -9,8 +9,8 @@ export async function GET(req: NextRequest) {
   try {
     const { env } = getCloudflareContext();
     const searchParams = req.nextUrl.searchParams;
-    const id = Number(searchParams.get("id") ?? "");
-    if (Number.isInteger(id) && id > 0) {
+    const id = searchParams.get("id");
+    if (id && id.trim().length > 0) {
       const data = await getResourceById(env as unknown as EnvWithHyperdrive, id);
       if (!data) return new Response(null, { status: 404 });
       return jsonOk(data);
@@ -56,7 +56,10 @@ export async function PUT(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
-    const id = Number(searchParams.get("id"));
+    const id = searchParams.get("id");
+    if (!id || id.trim().length === 0) {
+      return jsonError(new Error("Resource ID is required"), 400);
+    }
     const { env } = getCloudflareContext();
     await removeResource(env as unknown as EnvWithHyperdrive, id);
     return jsonOk({ ok: true });

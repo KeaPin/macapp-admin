@@ -32,7 +32,7 @@ export async function findPagedCategories(
   queryParams.push(pageSize, offset);
 
   const itemsResult = await runQuery<{
-    id: number;
+    id: string;
     name: string;
     description: string | null;
     status: CategoryStatus;
@@ -43,10 +43,10 @@ export async function findPagedCategories(
     SELECT id, name, description, status, total FROM (
       SELECT id, name, description, status, COUNT(*) OVER() AS total
       FROM (
-        SELECT id::double precision AS id, name, description, status
+        SELECT id::text AS id, name, description, status
         FROM categories
         UNION ALL
-        SELECT (id)::double precision AS id, name, description, COALESCE(status, 'NORMAL') as status
+        SELECT id::text AS id, name, description, COALESCE(status, 'NORMAL') as status
         FROM category
         WHERE id ~ '^[0-9]+$'
       ) t
@@ -79,9 +79,9 @@ export async function findPagedCategories(
       env,
       `
       SELECT COUNT(*) AS total FROM (
-        SELECT id::double precision AS id, name, description, status FROM categories
+        SELECT id::text AS id, name, description, status FROM categories
         UNION ALL
-        SELECT (id)::double precision AS id, name, description, COALESCE(status, 'NORMAL') as status FROM category WHERE id ~ '^[0-9]+$'
+        SELECT id::text AS id, name, description, COALESCE(status, 'NORMAL') as status FROM category WHERE id ~ '^[0-9]+$'
       ) t
       ${countWhereClause}
       `,
@@ -91,7 +91,7 @@ export async function findPagedCategories(
   }
 
   const items: Category[] = itemsResult.rows.map((row) => ({
-    id: Number(row.id),
+    id: String(row.id),
     name: row.name,
     description: row.description,
     status: row.status,
@@ -103,18 +103,18 @@ export async function findPagedCategories(
 export async function insertCategory(
   env: EnvWithHyperdrive,
   data: { name: string; description: string | null; status: CategoryStatus }
-): Promise<number> {
-  const result = await runQuery<{ id: number }>(
+): Promise<string> {
+  const result = await runQuery<{ id: string }>(
     env,
     `INSERT INTO categories(name, description, status) VALUES($1, $2, $3) RETURNING id`,
     [data.name, data.description, data.status]
   );
-  return result.rows[0].id;
+  return String(result.rows[0].id);
 }
 
 export async function updateCategory(
   env: EnvWithHyperdrive,
-  data: { id: number; name?: string; description?: string | null; status?: CategoryStatus }
+  data: { id: string; name?: string; description?: string | null; status?: CategoryStatus }
 ): Promise<void> {
   const fields: string[] = [];
   const values: unknown[] = [];
@@ -132,11 +132,11 @@ export async function updateCategory(
   }
   if (fields.length === 0) return;
   values.push(data.id);
-  await runQuery(env, `UPDATE categories SET ${fields.join(", ")}, updated_at = now() WHERE id = $${values.length}` as string, values);
+  await runQuery(env, `UPDATE categories SET ${fields.join(", ")}, updated_at = now() WHERE id::text = $${values.length}` as string, values);
 }
 
-export async function deleteCategory(env: EnvWithHyperdrive, id: number): Promise<void> {
-  await runQuery(env, `DELETE FROM categories WHERE id = $1`, [id]);
+export async function deleteCategory(env: EnvWithHyperdrive, id: string): Promise<void> {
+  await runQuery(env, `DELETE FROM categories WHERE id::text = $1`, [id]);
 }
 
 

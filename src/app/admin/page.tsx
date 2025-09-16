@@ -5,7 +5,7 @@ type Stats = {
   totalCategories: number;
   totalResources: number;
   recentResources: Array<{
-    id: number;
+    id: string;
     title: string;
     url: string;
     category_id: number | null;
@@ -31,7 +31,7 @@ export default function AdminDashboard() {
 
       type CategoriesResponse = { total: number };
       type ResourceListItem = {
-        id: number;
+        id: string;
         title: string;
         url?: string;
         category_id?: number | null;

@@ -9,7 +9,7 @@ function generateObjectKey(prefix: string, filename: string): string {
   const m = String(now.getUTCMonth() + 1).padStart(2, "0");
   const d = String(now.getUTCDate()).padStart(2, "0");
   const ts = now.getTime();
-  return `${prefix}/${y}/${m}/${d}/${ts}-${Math.random().toString(36).slice(2, 8)}-${safeName}`;
+  return `${prefix}/${ts}-${Math.random().toString(36).slice(2, 8)}${safeName}`;
 }
 
 export async function POST(req: NextRequest) {

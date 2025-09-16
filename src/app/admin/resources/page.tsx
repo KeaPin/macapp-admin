@@ -2,14 +2,14 @@
 import { useEffect, useRef, useState } from "react";
 
 type Resource = {
-  id: number;
+  id: string;
   title: string;
   icon: string | null;
   category_names: string[];
   status: string;
 };
 
-type Category = { id: number; name: string };
+type Category = { id: string; name: string };
 
 export default function ResourcesPage() {
   const [items, setItems] = useState<Resource[]>([]);
@@ -126,7 +126,7 @@ export default function ResourcesPage() {
       body: JSON.stringify({
         title,
         url,
-        categoryId: categoryId ? Number(categoryId) : null,
+        categoryId: categoryId ? parseInt(categoryId) : null,
         synopsis: synopsis || null,
         icon: icon || null,
         status,
@@ -142,12 +142,12 @@ export default function ResourcesPage() {
     await load(1, pageSize, q, statusFilter);
   }
 
-  async function deleteResource(id: number) {
+  async function deleteResource(id: string) {
     await fetch(`/api/resources?id=${id}`, { method: "DELETE" });
     await load();
   }
 
-  async function toggleStatus(id: number, currentStatus: string) {
+  async function toggleStatus(id: string, currentStatus: string) {
     const newStatus = currentStatus === "NORMAL" ? "VOID" : "NORMAL";
     await fetch("/api/resources", {
       method: "PUT",
@@ -165,7 +165,7 @@ export default function ResourcesPage() {
     try {
       const res = await fetch(`/api/resources?id=${r.id}`);
       if (res.ok) {
-        const data = (await res.json()) as { id: number; title: string; url: string; categoryId: number | null; synopsis: string | null; status: string; icon: string | null };
+        const data = (await res.json()) as { id: string; title: string; url: string; categoryId: number | null; synopsis: string | null; status: string; icon: string | null };
         setEditTitle(data.title ?? r.title);
         setEditUrl(data.url ?? "");
         setEditCategoryId(data.categoryId ? String(data.categoryId) : "");
@@ -204,7 +204,7 @@ export default function ResourcesPage() {
           id: editing.id,
           title: editTitle,
           url: editUrl,
-          categoryId: editCategoryId ? Number(editCategoryId) : null,
+          categoryId: editCategoryId ? parseInt(editCategoryId) : null,
           synopsis: editSynopsis || null,
           icon: editIcon || null,
           status: editStatus,
