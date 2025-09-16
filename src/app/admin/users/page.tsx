@@ -261,7 +261,8 @@ export default function UsersManagement() {
                       ))
                     )}
                   </tbody>
-                </table>
+                  </table>
+                </div>
               </div>
             </div>
           </div>
