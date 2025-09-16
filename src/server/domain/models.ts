@@ -17,6 +17,17 @@ export interface Resource {
   status: Status;
 }
 
+export interface User {
+  id: string;
+  userName: string | null;
+  password: string;
+  avatar: string | null;
+  email: string | null;
+  role: string | null;
+  status: Status;
+  createTime: Date;
+}
+
 export type Page<TItem> = {
   items: TItem[];
   total: number;

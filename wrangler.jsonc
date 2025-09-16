@@ -29,6 +29,7 @@
     }
   ],
   "vars": {
-    "R2_PUBLIC_BASE": "https://image.gamesport.store"
+    "R2_PUBLIC_BASE": "https://image.gamesport.store",
+    "SECRET_COOKIE_PASSWORD": "macapp-admin-secret-key-must-be-at-least-32-characters-long-for-security"
   }
 }

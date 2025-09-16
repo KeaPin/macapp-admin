@@ -5,9 +5,6 @@ import { jsonError, jsonOk } from "@/server/http";
 function generateObjectKey(prefix: string, filename: string): string {
   const safeName = filename.replace(/[^a-zA-Z0-9._-]/g, "_");
   const now = new Date();
-  const y = now.getUTCFullYear();
-  const m = String(now.getUTCMonth() + 1).padStart(2, "0");
-  const d = String(now.getUTCDate()).padStart(2, "0");
   const ts = now.getTime();
   return `${prefix}/${ts}-${Math.random().toString(36).slice(2, 8)}${safeName}`;
 }

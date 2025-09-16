@@ -127,6 +127,21 @@ export async function ensureSchema(env: EnvWithHyperdrive): Promise<void> {
     await client.query(
       `CREATE INDEX IF NOT EXISTS idx_resources_category_id ON resources(category_id);`
     );
+
+    // user 表
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS "user" (
+        id varchar(32) PRIMARY KEY NOT NULL,
+        user_name varchar(255),
+        password varchar(255) NOT NULL,
+        avatar varchar(255),
+        email varchar(255),
+        role varchar(255),
+        status varchar(255) NOT NULL DEFAULT 'NORMAL',
+        create_time timestamp(6) NOT NULL DEFAULT now()
+      );
+    `);
+
     await client.query("COMMIT");
     initRegistry.add(dsn);
   } catch (error) {

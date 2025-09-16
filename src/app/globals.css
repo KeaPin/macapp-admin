@@ -26,9 +26,170 @@
   }
 }
 
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}
+
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans), system-ui, -apple-system, Segoe UI, Roboto,
     Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+}
+
+/* Admin layout specific styles */
+.admin-layout {
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* Custom scrollbar for webkit browsers */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(156, 163, 175, 0.3);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(156, 163, 175, 0.5);
+}
+
+/* Focus styles */
+.focus-ring {
+  @apply focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-zinc-900;
+}
+
+/* Animation utilities */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slide-in-right {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes slide-out-right {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes zoom-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.2s ease-out;
+}
+
+.animate-slide-in-right {
+  animation: slide-in-right 0.3s ease-out;
+}
+
+.animate-slide-out-right {
+  animation: slide-out-right 0.3s ease-in;
+}
+
+.animate-zoom-in {
+  animation: zoom-in 0.2s ease-out;
+}
+
+/* Loading animation */
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+/* Improved modal backdrop */
+.modal-backdrop {
+  backdrop-filter: blur(8px);
+  background: rgba(0, 0, 0, 0.6);
+}
+
+/* Smooth transitions for all interactive elements */
+button, 
+input, 
+select, 
+textarea,
+[role="button"] {
+  transition: all 0.15s ease-in-out;
+}
+
+/* Enhanced hover states */
+.hover-lift:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+}
+
+/* Status badges */
+.status-badge {
+  @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ring-1 ring-inset;
+}
+
+.status-badge.success {
+  @apply bg-green-50 text-green-700 ring-green-600/20;
+}
+
+.status-badge.error {
+  @apply bg-red-50 text-red-700 ring-red-600/20;
+}
+
+.status-badge.warning {
+  @apply bg-yellow-50 text-yellow-800 ring-yellow-600/20;
+}
+
+.status-badge.info {
+  @apply bg-blue-50 text-blue-700 ring-blue-700/10;
+}
+
+/* Dark theme status badges */
+.dark .status-badge.success {
+  @apply bg-green-400/10 text-green-400 ring-green-400/20;
+}
+
+.dark .status-badge.error {
+  @apply bg-red-400/10 text-red-400 ring-red-400/20;
+}
+
+.dark .status-badge.warning {
+  @apply bg-yellow-400/10 text-yellow-400 ring-yellow-400/20;
+}
+
+.dark .status-badge.info {
+  @apply bg-blue-400/10 text-blue-400 ring-blue-400/20;
 }
