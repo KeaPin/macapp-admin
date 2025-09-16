@@ -1,6 +1,6 @@
 "use client";
 
-// import { usePathname } from "next/navigation"; // TODO: Uncomment when implementing active routes
+import { usePathname } from "next/navigation";
 import { useSidebar } from "./SidebarContext";
 import Link from "next/link";
 
@@ -45,15 +45,14 @@ const navigation = [
 ];
 
 export default function ImprovedSidebar() {
-  // const pathname = usePathname(); // TODO: Use this for active route highlighting
+  const pathname = usePathname();
   const { isExpanded, isMobile, isOpen, closeSidebar } = useSidebar();
 
   const isActiveRoute = (href: string) => {
-    // TODO: Implement active route logic when pathname is uncommented
     if (href === "/admin") {
-      return false; // placeholder
+      return pathname === "/admin";
     }
-    return false; // placeholder
+    return pathname.startsWith(href);
   };
 
   const navItemClass = (active: boolean) => {
