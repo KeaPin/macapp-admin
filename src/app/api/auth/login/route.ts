@@ -24,15 +24,16 @@ export async function POST(req: NextRequest) {
     const { env } = getCloudflareContext();
     
     // 验证环境变量是否正确设置
-    if (!env || !(env as any).HYPERDRIVE) {
-      console.error("[LOGIN] HYPERDRIVE not found in environment:", { env: !!env, hyperdrive: !!(env as any)?.HYPERDRIVE });
+    const typedEnv = env as EnvWithHyperdrive;
+    if (!env || !typedEnv.HYPERDRIVE) {
+      console.error("[LOGIN] HYPERDRIVE not found in environment:", { env: !!env, hyperdrive: !!typedEnv?.HYPERDRIVE });
       return jsonError(new Error("数据库配置错误"), 500);
     }
     
     console.log("[LOGIN] Environment context obtained, authenticating user");
     
     // 验证用户凭据
-    const user = await authenticateUser(env as unknown as EnvWithHyperdrive, parsed.data);
+    const user = await authenticateUser(typedEnv, parsed.data);
     
     if (!user) {
       console.log("[LOGIN] Authentication failed for user:", parsed.data.userName);

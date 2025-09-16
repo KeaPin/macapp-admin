@@ -1,12 +1,43 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { EnvWithHyperdrive } from "@/server/db";
 import { runQuery } from "@/server/db";
 
-export async function GET(req: NextRequest) {
+// 健康检查详情类型
+interface HealthDetails {
+  hyperdrive?: {
+    connectionString: string;
+  };
+  environment?: {
+    SECRET_COOKIE_PASSWORD: string;
+    R2_PUBLIC_BASE: string;
+    R2: string;
+  };
+  database?: {
+    connection: string;
+    test_query?: string;
+    error?: string;
+  };
+}
+
+// 健康检查状态类型
+interface HealthStatus {
+  status: string;
+  timestamp: string;
+  checks: {
+    cloudflare_context: boolean;
+    hyperdrive_binding: boolean;
+    database_connection: boolean;
+    environment_variables: boolean;
+  };
+  details: HealthDetails;
+  errors: string[];
+}
+
+export async function GET() {
   console.log("[HEALTH] Health check started");
   
-  const healthStatus = {
+  const healthStatus: HealthStatus = {
     status: "ok",
     timestamp: new Date().toISOString(),
     checks: {
@@ -15,8 +46,8 @@ export async function GET(req: NextRequest) {
       database_connection: false,
       environment_variables: false,
     },
-    details: {} as any,
-    errors: [] as string[],
+    details: {},
+    errors: [],
   };
 
   try {
@@ -28,10 +59,11 @@ export async function GET(req: NextRequest) {
 
     // 检查 HYPERDRIVE 绑定
     console.log("[HEALTH] Checking HYPERDRIVE binding");
-    if (env && (env as any).HYPERDRIVE) {
+    const typedEnv = env as EnvWithHyperdrive;
+    if (env && typedEnv.HYPERDRIVE) {
       healthStatus.checks.hyperdrive_binding = true;
       healthStatus.details.hyperdrive = {
-        connectionString: (env as any).HYPERDRIVE.connectionString ? "configured" : "missing",
+        connectionString: typedEnv.HYPERDRIVE.connectionString ? "configured" : "missing",
       };
       console.log("[HEALTH] HYPERDRIVE binding OK");
     } else {
@@ -42,12 +74,12 @@ export async function GET(req: NextRequest) {
     // 检查环境变量
     console.log("[HEALTH] Checking environment variables");
     healthStatus.details.environment = {
-      SECRET_COOKIE_PASSWORD: (env as any)?.SECRET_COOKIE_PASSWORD ? "configured" : "missing",
-      R2_PUBLIC_BASE: (env as any)?.R2_PUBLIC_BASE ? "configured" : "missing",
-      R2: (env as any)?.R2 ? "configured" : "missing",
+      SECRET_COOKIE_PASSWORD: typedEnv?.SECRET_COOKIE_PASSWORD ? "configured" : "missing",
+      R2_PUBLIC_BASE: typedEnv?.R2_PUBLIC_BASE ? "configured" : "missing",
+      R2: typedEnv?.R2 ? "configured" : "missing",
     };
     
-    if ((env as any)?.SECRET_COOKIE_PASSWORD) {
+    if (typedEnv?.SECRET_COOKIE_PASSWORD) {
       healthStatus.checks.environment_variables = true;
       console.log("[HEALTH] Environment variables OK");
     } else {
@@ -59,7 +91,7 @@ export async function GET(req: NextRequest) {
     console.log("[HEALTH] Checking database connection");
     if (healthStatus.checks.hyperdrive_binding) {
       try {
-        const result = await runQuery(env as EnvWithHyperdrive, "SELECT 1 as test_connection");
+        const result = await runQuery(typedEnv, "SELECT 1 as test_connection");
         healthStatus.checks.database_connection = true;
         healthStatus.details.database = {
           connection: "ok",

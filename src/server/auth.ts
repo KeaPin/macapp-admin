@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { SafeUser } from "@/server/services/users.service";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
+import { EnvWithHyperdrive } from "@/server/db";
 
 // 会话数据类型
 export interface SessionData {
@@ -14,7 +15,8 @@ function getJWTSecret(): string {
   try {
     // 在Cloudflare Workers环境中使用getCloudflareContext
     const { env } = getCloudflareContext();
-    const secret = (env as any).SECRET_COOKIE_PASSWORD;
+    const typedEnv = env as EnvWithHyperdrive;
+    const secret = typedEnv.SECRET_COOKIE_PASSWORD;
     if (secret) {
       return secret;
     }

@@ -4,6 +4,10 @@ export type EnvWithHyperdrive = {
   HYPERDRIVE: { connectionString: string };
   // 可选：R2 存储桶绑定（通过 wrangler r2_buckets 绑定）。
   R2?: unknown;
+  // 认证和会话管理
+  SECRET_COOKIE_PASSWORD?: string;
+  // R2 公共基础 URL
+  R2_PUBLIC_BASE?: string;
 };
 
 declare global {
