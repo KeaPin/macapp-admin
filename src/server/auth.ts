@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { SafeUser } from "@/server/services/users.service";
+import { getCloudflareContext } from "@opennextjs/cloudflare";
 
 // 会话数据类型
 export interface SessionData {
@@ -8,8 +9,23 @@ export interface SessionData {
   exp?: number; // 过期时间
 }
 
-// JWT 密钥
-const JWT_SECRET = process.env.SECRET_COOKIE_PASSWORD || "default-secret-password-must-be-at-least-32-characters";
+// 获取JWT密钥的函数
+function getJWTSecret(): string {
+  try {
+    // 在Cloudflare Workers环境中使用getCloudflareContext
+    const { env } = getCloudflareContext();
+    const secret = (env as any).SECRET_COOKIE_PASSWORD;
+    if (secret) {
+      return secret;
+    }
+  } catch (error) {
+    // 如果在非Cloudflare环境（如开发环境）中，回退到process.env
+    console.warn("Failed to get JWT secret from Cloudflare context, falling back to process.env:", error);
+  }
+  
+  // 回退到process.env（开发环境）
+  return process.env.SECRET_COOKIE_PASSWORD || "default-secret-password-must-be-at-least-32-characters";
+}
 
 // 简单的 base64url 编码/解码函数
 function base64urlEncode(str: string): string {
@@ -32,7 +48,8 @@ function createToken(payload: SessionData): string {
   const payloadEncoded = base64urlEncode(JSON.stringify(payload));
   
   // 简单的 HMAC 签名（生产环境应使用 crypto.subtle）
-  const signature = base64urlEncode(JWT_SECRET + headerEncoded + payloadEncoded);
+  const jwtSecret = getJWTSecret();
+  const signature = base64urlEncode(jwtSecret + headerEncoded + payloadEncoded);
   
   return `${headerEncoded}.${payloadEncoded}.${signature}`;
 }
@@ -43,7 +60,8 @@ function verifyToken(token: string): SessionData | null {
     const [headerEncoded, payloadEncoded, signature] = token.split('.');
     
     // 验证签名
-    const expectedSignature = base64urlEncode(JWT_SECRET + headerEncoded + payloadEncoded);
+    const jwtSecret = getJWTSecret();
+    const expectedSignature = base64urlEncode(jwtSecret + headerEncoded + payloadEncoded);
     if (signature !== expectedSignature) {
       return null;
     }

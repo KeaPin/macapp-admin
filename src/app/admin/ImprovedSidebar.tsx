@@ -9,7 +9,7 @@ const navigation = [
     name: "概览",
     href: "/admin",
     icon: (
-      <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
+      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
       </svg>
     ),
@@ -18,7 +18,7 @@ const navigation = [
     name: "分类管理",
     href: "/admin/categories",
     icon: (
-      <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
+      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" d="M9.568 3H5.25A2.25 2.25 0 003 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581c.699.699 1.78.872 2.607.33a18.095 18.095 0 005.223-5.223c.542-.827.369-1.908-.33-2.607L11.16 3.66A2.25 2.25 0 009.568 3z" />
         <path strokeLinecap="round" strokeLinejoin="round" d="M6 6h.008v.008H6V6z" />
       </svg>
@@ -28,7 +28,7 @@ const navigation = [
     name: "资源管理",
     href: "/admin/resources",
     icon: (
-      <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
+      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
       </svg>
     ),
@@ -37,7 +37,7 @@ const navigation = [
     name: "用户管理",
     href: "/admin/users",
     icon: (
-      <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
+      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
       </svg>
     ),
@@ -56,11 +56,16 @@ export default function ImprovedSidebar() {
   };
 
   const navItemClass = (active: boolean) => {
-    return `group flex items-center px-2 py-2 text-sm font-medium rounded-md transition-all duration-200 ${
-      active
-        ? "bg-indigo-800 text-white"
-        : "text-zinc-300 hover:bg-zinc-800 hover:text-white"
-    }`;
+    const baseStyles = "group text-sm font-medium rounded-md transition-all duration-200";
+    const colorStyles = active
+      ? "bg-indigo-800 text-white"
+      : "text-zinc-300 hover:bg-zinc-800 hover:text-white";
+    
+    if (isExpanded || isMobile) {
+      return `${baseStyles} ${colorStyles} flex items-center px-2 py-2`;
+    } else {
+      return `${baseStyles} ${colorStyles} flex items-center justify-center mx-auto w-10 h-10`;
+    }
   };
 
   if (isMobile) {
@@ -76,7 +81,7 @@ export default function ImprovedSidebar() {
 
         {/* Mobile sidebar */}
         <div
-          className={`fixed inset-y-0 left-0 z-50 w-64 bg-zinc-900 transform transition-transform duration-300 ease-in-out md:hidden ${
+          className={`fixed inset-y-0 left-0 z-50 w-52 bg-zinc-900 transform transition-transform duration-300 ease-in-out md:hidden ${
             isOpen ? "translate-x-0" : "-translate-x-full"
           }`}
         >
@@ -97,7 +102,7 @@ export default function ImprovedSidebar() {
   return (
     <div
       className={`hidden md:flex md:flex-shrink-0 transition-all duration-300 ease-in-out ${
-        isExpanded ? "md:w-64" : "md:w-16"
+        isExpanded ? "md:w-52" : "md:w-12"
       }`}
     >
       <div className="flex flex-col w-full h-full bg-zinc-900">
@@ -133,7 +138,7 @@ function SidebarContent({
   return (
     <div className="flex flex-col h-full">
       {/* Logo */}
-      <div className={`flex items-center flex-shrink-0 px-4 py-5 ${!isExpanded && !isMobile ? "justify-center" : ""}`}>
+      <div className={`flex items-center flex-shrink-0 py-5 ${!isExpanded && !isMobile ? "justify-center px-0" : "px-4"}`}>
         <div className="flex items-center gap-3">
           <div className="flex h-8 w-8 items-center justify-center rounded bg-indigo-500">
             <span className="text-sm font-bold text-white">M</span>
@@ -145,7 +150,7 @@ function SidebarContent({
       </div>
 
       {/* Navigation */}
-      <nav className={`flex-1 space-y-1 ${isExpanded || isMobile ? "px-4" : "px-2"} pb-4`}>
+      <nav className={`flex-1 space-y-1 ${isExpanded || isMobile ? "px-4" : "px-0"} pb-4`}>
         {navigation.map((item) => {
           const active = isActiveRoute(item.href);
           return (
@@ -156,12 +161,14 @@ function SidebarContent({
               onClick={isMobile ? closeSidebar : undefined}
               title={!isExpanded && !isMobile ? item.name : undefined}
             >
-              <div className="flex items-center gap-3">
-                <span className="flex-shrink-0">{item.icon}</span>
-                {(isExpanded || isMobile) && (
+              {(isExpanded || isMobile) ? (
+                <div className="flex items-center gap-3">
+                  <span className="flex-shrink-0">{item.icon}</span>
                   <span className="flex-1">{item.name}</span>
-                )}
-              </div>
+                </div>
+              ) : (
+                <span className="flex-shrink-0">{item.icon}</span>
+              )}
               {active && !isExpanded && !isMobile && (
                 <div className="absolute left-0 top-0 h-full w-1 bg-indigo-500 rounded-r" />
               )}

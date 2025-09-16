@@ -7,22 +7,39 @@ import { authenticateUser } from "@/server/services/users.service";
 import { getSession } from "@/server/auth";
 
 export async function POST(req: NextRequest) {
+  console.log("[LOGIN] Processing login request");
+  
   try {
     const body = await req.json().catch(() => ({}));
+    console.log("[LOGIN] Request body parsed");
+    
     const parsed = userLoginSchema.safeParse(body);
     
     if (!parsed.success) {
+      console.error("[LOGIN] Validation error:", parsed.error.flatten());
       return jsonError(new Error("用户名或密码格式错误"), 400);
     }
 
+    console.log("[LOGIN] Getting Cloudflare context");
     const { env } = getCloudflareContext();
+    
+    // 验证环境变量是否正确设置
+    if (!env || !(env as any).HYPERDRIVE) {
+      console.error("[LOGIN] HYPERDRIVE not found in environment:", { env: !!env, hyperdrive: !!(env as any)?.HYPERDRIVE });
+      return jsonError(new Error("数据库配置错误"), 500);
+    }
+    
+    console.log("[LOGIN] Environment context obtained, authenticating user");
     
     // 验证用户凭据
     const user = await authenticateUser(env as unknown as EnvWithHyperdrive, parsed.data);
     
     if (!user) {
+      console.log("[LOGIN] Authentication failed for user:", parsed.data.userName);
       return jsonError(new Error("用户名或密码错误"), 401);
     }
+    
+    console.log("[LOGIN] Authentication successful for user:", user.userName);
 
     // 创建会话token
     const session = await getSession(req);
@@ -62,7 +79,12 @@ export async function POST(req: NextRequest) {
 
     return response;
   } catch (e) {
-    console.error("Login error:", e);
+    console.error("[LOGIN] Unexpected error:", {
+      error: e,
+      message: e instanceof Error ? e.message : 'Unknown error',
+      stack: e instanceof Error ? e.stack : undefined,
+      timestamp: new Date().toISOString()
+    });
     return jsonError(e);
   }
 }

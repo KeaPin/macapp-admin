@@ -28,11 +28,31 @@ function getSchemaInitRegistry(): Set<string> {
 }
 
 export function getPool(env: EnvWithHyperdrive): Pool {
+  if (!env.HYPERDRIVE) {
+    console.error("[DB] HYPERDRIVE binding not found in environment");
+    throw new Error("HYPERDRIVE binding not configured");
+  }
+  
   const dsn = env.HYPERDRIVE.connectionString;
+  if (!dsn) {
+    console.error("[DB] HYPERDRIVE connection string is empty");
+    throw new Error("HYPERDRIVE connection string not configured");
+  }
+  
+  console.log("[DB] Getting pool for DSN:", dsn.replace(/:[^:]*@/, ':***@')); // 隐藏密码
+  
   const registry = getPoolsRegistry();
   let pool = registry.get(dsn);
   if (!pool) {
-    pool = new Pool({ connectionString: dsn, max: 5 });
+    console.log("[DB] Creating new pool");
+    pool = new Pool({ 
+      connectionString: dsn, 
+      max: 5,
+      // 增加超时设置
+      connectionTimeoutMillis: 10000,
+      idleTimeoutMillis: 30000,
+      query_timeout: 10000,
+    });
     registry.set(dsn, pool);
   }
   return pool;
@@ -157,9 +177,29 @@ export async function runQuery<T extends QueryResultRow = QueryResultRow>(
   text: string,
   params: unknown[] = []
 ): Promise<QueryResult<T>> {
-  await ensureSchema(env);
-  const pool = getPool(env);
-  return pool.query<T>(text, params);
+  try {
+    console.log("[DB] Running query:", text.substring(0, 100) + (text.length > 100 ? '...' : ''));
+    
+    await ensureSchema(env);
+    const pool = getPool(env);
+    
+    const startTime = Date.now();
+    const result = await pool.query<T>(text, params);
+    const duration = Date.now() - startTime;
+    
+    console.log(`[DB] Query completed in ${duration}ms, returned ${result.rows.length} rows`);
+    
+    return result;
+  } catch (error) {
+    console.error("[DB] Query failed:", {
+      query: text.substring(0, 200),
+      params: params?.length,
+      error: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+      timestamp: new Date().toISOString()
+    });
+    throw error;
+  }
 }
 
 export async function withClient<R>(
