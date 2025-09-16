@@ -1,11 +1,11 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 type Resource = {
   id: number;
   title: string;
   icon: string | null;
-  category_name: string | null;
+  category_names: string[];
   status: string;
 };
 
@@ -22,17 +22,26 @@ export default function ResourcesPage() {
   const [editTitle, setEditTitle] = useState("");
   const [editUrl, setEditUrl] = useState("");
   const [editCategoryId, setEditCategoryId] = useState<string>("");
-  const [editDescription, setEditDescription] = useState("");
+  const [editSynopsis, setEditSynopsis] = useState("");
+  const [editIcon, setEditIcon] = useState<string>("");
   const [editStatus, setEditStatus] = useState("NORMAL");
+  const [isUploadingEditIcon, setIsUploadingEditIcon] = useState(false);
+  const editIconInputRef = useRef<HTMLInputElement | null>(null);
   const [creating, setCreating] = useState(false);
   const [title, setTitle] = useState("");
   const [url, setUrl] = useState("");
   const [categoryId, setCategoryId] = useState<string>("");
-  const [description, setDescription] = useState("");
+  const [synopsis, setSynopsis] = useState("");
+  const [icon, setIcon] = useState<string>("");
   const [status, setStatus] = useState("NORMAL");
+  const [isUploadingIcon, setIsUploadingIcon] = useState(false);
+  const createIconInputRef = useRef<HTMLInputElement | null>(null);
   const [q, setQ] = useState("");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState(""); // 状态筛选
+  const [editLoading, setEditLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [editErrors, setEditErrors] = useState<{ title?: string; url?: string }>({});
 
   async function load(p = page, ps = pageSize, query = q, statusF = statusFilter) {
     setLoading(true);
@@ -43,7 +52,7 @@ export default function ResourcesPage() {
       
       const [r1, r2] = await Promise.all([
         fetch(resourceUrl).then(async (r) => (await r.json()) as { items: Resource[]; total: number; page: number; pageSize: number; q?: string; status?: string }),
-        fetch(`/api/categories?page=1&pageSize=1000`).then(async (r) => (await r.json()) as { items: Category[] } | Category[]),
+        fetch(`/api/categories?page=1&pageSize=1000`).then(async (r) => (await r.json()) as { items: Category[] }),
       ]);
       setItems(Array.isArray(r1.items) ? r1.items : []);
       setTotal(typeof r1.total === "number" ? r1.total : 0);
@@ -51,7 +60,7 @@ export default function ResourcesPage() {
       setPageSize(typeof r1.pageSize === "number" ? r1.pageSize : ps);
       if (typeof r1.q === "string") setQ(r1.q);
       if (typeof r1.status === "string") setStatusFilter(r1.status);
-      const cats = Array.isArray((r2 as any)?.items) ? (r2 as any).items : (Array.isArray(r2) ? (r2 as Category[]) : []);
+      const cats = Array.isArray(r2.items) ? r2.items : [];
       setCategories(cats);
     } finally {
       setLoading(false);
@@ -63,6 +72,52 @@ export default function ResourcesPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    if (!editing) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
+        e.preventDefault();
+        void saveEdit();
+      }
+      if (e.key === "Escape") {
+        e.preventDefault();
+        setEditing(null);
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [editing, editTitle, editUrl, editCategoryId, editSynopsis, editStatus]);
+
+  function validateUrlLike(value: string): boolean {
+    const v = value.trim();
+    if (!v) return false;
+    try {
+      // eslint-disable-next-line no-new
+      new URL(v);
+      return true;
+    } catch {
+      return /^https?:\/\/\S+$/i.test(v);
+    }
+  }
+
+  function validateEdit(): boolean {
+    const errs: { title?: string; url?: string } = {};
+    if (!editTitle.trim()) errs.title = "请输入标题";
+    if (!editUrl.trim()) errs.url = "请输入 URL";
+    else if (!validateUrlLike(editUrl)) errs.url = "URL 格式不正确";
+    setEditErrors(errs);
+    return Object.keys(errs).length === 0;
+  }
+
+  function copyEditUrl() {
+    if (!editUrl) return;
+    try {
+      void navigator.clipboard?.writeText(editUrl);
+    } catch {
+      /* noop */
+    }
+  }
+
   async function createResource() {
     if (!title.trim() || !url.trim()) return;
     await fetch("/api/resources", {
@@ -72,14 +127,16 @@ export default function ResourcesPage() {
         title,
         url,
         categoryId: categoryId ? Number(categoryId) : null,
-        description: description || null,
+        synopsis: synopsis || null,
+        icon: icon || null,
         status,
       }),
     });
     setTitle("");
     setUrl("");
     setCategoryId("");
-    setDescription("");
+    setSynopsis("");
+    setIcon("");
     setStatus("NORMAL");
     setCreating(false);
     await load(1, pageSize, q, statusFilter);
@@ -102,42 +159,62 @@ export default function ResourcesPage() {
 
   async function openEdit(r: Resource) {
     setEditing(r);
+    setEditErrors({});
+    setIsSaving(false);
+    setEditLoading(true);
     try {
       const res = await fetch(`/api/resources?id=${r.id}`);
       if (res.ok) {
-        const data = (await res.json()) as { id: number; title: string; url: string; category_id: number | null; description: string | null; status: string };
-        setEditTitle(data.title);
-        setEditUrl(data.url);
-        setEditCategoryId(data.category_id ? String(data.category_id) : "");
-        setEditDescription(data.description || "");
-        setEditStatus(data.status || "NORMAL");
+        const data = (await res.json()) as { id: number; title: string; url: string; categoryId: number | null; synopsis: string | null; status: string; icon: string | null };
+        setEditTitle(data.title ?? r.title);
+        setEditUrl(data.url ?? "");
+        setEditCategoryId(data.categoryId ? String(data.categoryId) : "");
+        setEditSynopsis(data.synopsis || "");
+        setEditIcon(data.icon || "");
+        setEditStatus((data.status as string) || "NORMAL");
       } else {
         setEditTitle(r.title);
+        setEditUrl("");
+        setEditCategoryId("");
+        setEditSynopsis("");
+        setEditIcon(r.icon || "");
         setEditStatus("NORMAL");
       }
     } catch {
       setEditTitle(r.title);
+      setEditUrl("");
+      setEditCategoryId("");
+      setEditSynopsis("");
+      setEditIcon(r.icon || "");
       setEditStatus("NORMAL");
+    } finally {
+      setEditLoading(false);
     }
   }
 
   async function saveEdit() {
     if (!editing) return;
-    if (!editTitle.trim() || !editUrl.trim()) return;
-    await fetch("/api/resources", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        id: editing.id,
-        title: editTitle,
-        url: editUrl,
-        categoryId: editCategoryId ? Number(editCategoryId) : null,
-        description: editDescription || null,
-        status: editStatus,
-      }),
-    });
-    setEditing(null);
-    await load();
+    if (!validateEdit()) return;
+    setIsSaving(true);
+    try {
+      await fetch("/api/resources", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: editing.id,
+          title: editTitle,
+          url: editUrl,
+          categoryId: editCategoryId ? Number(editCategoryId) : null,
+          synopsis: editSynopsis || null,
+          icon: editIcon || null,
+          status: editStatus,
+        }),
+      });
+      setEditing(null);
+      await load();
+    } finally {
+      setIsSaving(false);
+    }
   }
 
   return (
@@ -248,8 +325,8 @@ export default function ResourcesPage() {
             <input
               className="block w-full rounded-md border-0 bg-zinc-800 py-2 px-3 text-white shadow-sm ring-1 ring-inset ring-zinc-700 placeholder:text-zinc-400 focus:ring-2 focus:ring-inset focus:ring-indigo-500 sm:text-sm sm:leading-6"
               placeholder="简要描述资源用途"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              value={synopsis}
+              onChange={(e) => setSynopsis(e.target.value)}
             />
           </div>
           <div className="flex md:justify-end">
@@ -319,7 +396,7 @@ export default function ResourcesPage() {
                           {r.title}
                         </td>
                         <td className="whitespace-nowrap px-3 py-4 text-sm text-zinc-300">
-                          {r.category_name || "未分类"}
+                          {Array.isArray(r.category_names) && r.category_names.length > 0 ? r.category_names.join("，") : "未分类"}
                         </td>
                         <td className="whitespace-nowrap px-3 py-4 text-sm">
                           <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
@@ -364,78 +441,201 @@ export default function ResourcesPage() {
           </div>
         </div>
       </div>
-      {/* Edit modal */}
+      {/* Edit drawer */}
       {editing && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
+        <div className="fixed inset-0 z-50">
           <div className="absolute inset-0 bg-black/60" onClick={() => setEditing(null)} />
-          <div className="relative z-10 w-full max-w-3xl rounded-lg bg-zinc-900 p-6 shadow">
-            <h3 className="text-lg font-semibold text-white">编辑资源</h3>
-            <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-zinc-300">标题</label>
-                <input
-                  className="block w-full rounded-md border-0 bg-zinc-800 py-2 px-3 text-white shadow-sm ring-1 ring-inset ring-zinc-700 placeholder:text-zinc-400 focus:ring-2 focus:ring-inset focus:ring-indigo-500 sm:text-sm sm:leading-6"
-                  value={editTitle}
-                  onChange={(e) => setEditTitle(e.target.value)}
-                />
+          <div className="absolute inset-y-0 right-0 flex max-w-full">
+            <div className="w-screen sm:max-w-xl">
+              <div className="flex h-full flex-col bg-zinc-900 shadow-xl ring-1 ring-zinc-800">
+                <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800">
+                  <div>
+                    <h3 className="text-base font-semibold text-white">编辑资源</h3>
+                    <p className="text-xs text-zinc-400 mt-1">ID {editing.id}</p>
+                  </div>
+                  <button
+                    className="rounded-md bg-zinc-800 px-3 py-1.5 text-sm text-zinc-200 hover:bg-zinc-700"
+                    onClick={() => setEditing(null)}
+                    aria-label="关闭编辑"
+                  >
+                    关闭
+                  </button>
+                </div>
+                <div className="flex-1 overflow-y-auto px-6 py-5">
+                  {editLoading ? (
+                    <div className="space-y-5 animate-pulse">
+                      <div className="space-y-2">
+                        <div className="h-4 w-16 rounded bg-zinc-800" />
+                        <div className="h-9 w-full rounded-md bg-zinc-800" />
+                      </div>
+                      <div className="space-y-2">
+                        <div className="h-4 w-20 rounded bg-zinc-800" />
+                        <div className="h-9 w-full rounded-md bg-zinc-800" />
+                      </div>
+                      <div className="space-y-2">
+                        <div className="h-4 w-16 rounded bg-zinc-800" />
+                        <div className="h-9 w-full rounded-md bg-zinc-800" />
+                      </div>
+                      <div className="space-y-2">
+                        <div className="h-4 w-24 rounded bg-zinc-800" />
+                        <div className="h-24 w-full rounded-md bg-zinc-800" />
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-5">
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-zinc-300">标题</label>
+                        <input
+                          className="block w-full rounded-md border-0 bg-zinc-800 py-2 px-3 text-white shadow-sm ring-1 ring-inset ring-zinc-700 placeholder:text-zinc-400 focus:ring-2 focus:ring-inset focus:ring-indigo-500 sm:text-sm sm:leading-6"
+                          value={editTitle}
+                          onChange={(e) => {
+                            setEditTitle(e.target.value);
+                            if (editErrors.title) setEditErrors({ ...editErrors, title: undefined });
+                          }}
+                        />
+                        {editErrors.title && <p className="text-xs text-red-400">{editErrors.title}</p>}
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-zinc-300">图标</label>
+                        <div className="flex items-center gap-3">
+                          {editIcon ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={editIcon} alt="icon" className="h-10 w-10 rounded" />
+                          ) : (
+                            <div className="h-10 w-10 rounded bg-zinc-800" />
+                          )}
+                          <input
+                            ref={editIconInputRef}
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={async (e) => {
+                              const f = e.target.files?.[0];
+                              if (!f) return;
+                              try {
+                                setIsUploadingEditIcon(true);
+                                const fd = new FormData();
+                                fd.append("file", f);
+                                const res = await fetch("/api/uploads/resource-icon", { method: "POST", body: fd });
+                                if (res.ok) {
+                                  const data = (await res.json()) as { url?: string; key: string };
+                                  if (data.url) setEditIcon(data.url);
+                                }
+                              } finally {
+                                setIsUploadingEditIcon(false);
+                                if (editIconInputRef.current) editIconInputRef.current.value = "";
+                              }
+                            }}
+                          />
+                          <button
+                            className="rounded-md bg-zinc-800 px-3 py-2 text-xs text-zinc-200 hover:bg-zinc-700 disabled:opacity-50"
+                            onClick={() => editIconInputRef.current?.click()}
+                            type="button"
+                            disabled={isUploadingEditIcon}
+                          >
+                            {isUploadingEditIcon ? "上传中..." : editIcon ? "更换图标" : "上传图标"}
+                          </button>
+                          {editIcon && (
+                            <button
+                              className="rounded-md bg-zinc-800 px-3 py-2 text-xs text-zinc-200 hover:bg-zinc-700 disabled:opacity-50"
+                              onClick={() => setEditIcon("")}
+                              type="button"
+                              disabled={isUploadingEditIcon}
+                            >
+                              移除
+                            </button>
+                          )}
+                        </div>
+                        <p className="text-xs text-zinc-500">支持 PNG/JPG/SVG，建议正方形图标</p>
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-zinc-300">链接 URL</label>
+                        <div className="flex items-center gap-2">
+                          <input
+                            className="flex-1 rounded-md border-0 bg-zinc-800 py-2 px-3 text-white shadow-sm ring-1 ring-inset ring-zinc-700 placeholder:text-zinc-400 focus:ring-2 focus:ring-inset focus:ring-indigo-500 sm:text-sm sm:leading-6"
+                            value={editUrl}
+                            onChange={(e) => {
+                              setEditUrl(e.target.value);
+                              if (editErrors.url) setEditErrors({ ...editErrors, url: undefined });
+                            }}
+                            placeholder="https://example.com"
+                          />
+                          <button
+                            className="rounded-md bg-zinc-800 px-3 py-2 text-xs text-zinc-200 hover:bg-zinc-700"
+                            onClick={copyEditUrl}
+                            type="button"
+                          >
+                            复制
+                          </button>
+                          <a
+                            className="rounded-md bg-zinc-800 px-3 py-2 text-xs text-zinc-200 hover:bg-zinc-700"
+                            href={validateUrlLike(editUrl) ? editUrl : "#"}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            打开
+                          </a>
+                        </div>
+                        {editErrors.url && <p className="text-xs text-red-400">{editErrors.url}</p>}
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-zinc-300">分类</label>
+                        <select
+                          className="block w-full rounded-md border-0 bg-zinc-800 py-2 px-3 text-white shadow-sm ring-1 ring-inset ring-zinc-700 focus:ring-2 focus:ring-inset focus:ring-indigo-500 sm:text-sm sm:leading-6"
+                          value={editCategoryId}
+                          onChange={(e) => setEditCategoryId(e.target.value)}
+                        >
+                          <option value="">未分类</option>
+                          {categories.map((c) => (
+                            <option key={c.id} value={c.id}>
+                              {c.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-zinc-300">描述（可选）</label>
+                        <textarea
+                          className="block w-full rounded-md border-0 bg-zinc-800 py-2 px-3 text-white shadow-sm ring-1 ring-inset ring-zinc-700 placeholder:text-zinc-400 focus:ring-2 focus:ring-inset focus:ring-indigo-500 sm:text-sm sm:leading-6 min-h-[100px]"
+                          value={editSynopsis}
+                          onChange={(e) => setEditSynopsis(e.target.value)}
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-zinc-300">状态</label>
+                        <select
+                          className="block w-full rounded-md border-0 bg-zinc-800 py-2 px-3 text-white shadow-sm ring-1 ring-inset ring-zinc-700 focus:ring-2 focus:ring-inset focus:ring-indigo-500 sm:text-sm sm:leading-6"
+                          value={editStatus}
+                          onChange={(e) => setEditStatus(e.target.value)}
+                        >
+                          <option value="NORMAL">正常</option>
+                          <option value="VOID">下架</option>
+                        </select>
+                      </div>
+                    </div>
+                  )}
+                </div>
+                <div className="border-t border-zinc-800 bg-zinc-900 px-6 py-4 flex justify-end gap-3">
+                  <button
+                    className="rounded-md bg-zinc-800 px-4 py-2 text-sm text-zinc-200 hover:bg-zinc-700"
+                    onClick={() => setEditing(null)}
+                  >
+                    取消
+                  </button>
+                  <button
+                    className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 disabled:opacity-50"
+                    disabled={isSaving || !editTitle.trim() || !editUrl.trim()}
+                    onClick={saveEdit}
+                  >
+                    {isSaving ? "保存中..." : "保存"}
+                  </button>
+                </div>
               </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-zinc-300">链接 URL</label>
-                <input
-                  className="block w-full rounded-md border-0 bg-zinc-800 py-2 px-3 text-white shadow-sm ring-1 ring-inset ring-zinc-700 placeholder:text-zinc-400 focus:ring-2 focus:ring-inset focus:ring-indigo-500 sm:text-sm sm:leading-6"
-                  value={editUrl}
-                  onChange={(e) => setEditUrl(e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-zinc-300">分类</label>
-                <select
-                  className="block w-full rounded-md border-0 bg-zinc-800 py-2 px-3 text-white shadow-sm ring-1 ring-inset ring-zinc-700 focus:ring-2 focus:ring-inset focus:ring-indigo-500 sm:text-sm sm:leading-6"
-                  value={editCategoryId}
-                  onChange={(e) => setEditCategoryId(e.target.value)}
-                >
-                  <option value="">未分类</option>
-                  {categories.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-zinc-300">描述（可选）</label>
-                <input
-                  className="block w-full rounded-md border-0 bg-zinc-800 py-2 px-3 text-white shadow-sm ring-1 ring-inset ring-zinc-700 placeholder:text-zinc-400 focus:ring-2 focus:ring-inset focus:ring-indigo-500 sm:text-sm sm:leading-6"
-                  value={editDescription}
-                  onChange={(e) => setEditDescription(e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-zinc-300">状态</label>
-                <select
-                  className="block w-full rounded-md border-0 bg-zinc-800 py-2 px-3 text-white shadow-sm ring-1 ring-inset ring-zinc-700 focus:ring-2 focus:ring-inset focus:ring-indigo-500 sm:text-sm sm:leading-6"
-                  value={editStatus}
-                  onChange={(e) => setEditStatus(e.target.value)}
-                >
-                  <option value="NORMAL">正常</option>
-                  <option value="VOID">下架</option>
-                </select>
-              </div>
-            </div>
-            <div className="mt-6 flex justify-end gap-3">
-              <button
-                className="rounded-md bg-zinc-800 px-4 py-2 text-sm text-zinc-200 hover:bg-zinc-700"
-                onClick={() => setEditing(null)}
-              >
-                取消
-              </button>
-              <button
-                className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 disabled:opacity-50"
-                disabled={!editTitle.trim() || !editUrl.trim()}
-                onClick={saveEdit}
-              >
-                保存
-              </button>
             </div>
           </div>
         </div>
@@ -478,12 +678,65 @@ export default function ResourcesPage() {
                   ))}
                 </select>
               </div>
+              <div className="space-y-2 md:col-span-2">
+                <label className="text-sm font-medium text-zinc-300">图标</label>
+                <div className="flex items-center gap-3">
+                  {icon ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={icon} alt="icon" className="h-10 w-10 rounded" />
+                  ) : (
+                    <div className="h-10 w-10 rounded bg-zinc-800" />
+                  )}
+                  <input
+                    ref={createIconInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={async (e) => {
+                      const f = e.target.files?.[0];
+                      if (!f) return;
+                      try {
+                        setIsUploadingIcon(true);
+                        const fd = new FormData();
+                        fd.append("file", f);
+                        const res = await fetch("/api/uploads/resource-icon", { method: "POST", body: fd });
+                        if (res.ok) {
+                          const data = (await res.json()) as { url?: string; key: string };
+                          if (data.url) setIcon(data.url);
+                        }
+                      } finally {
+                        setIsUploadingIcon(false);
+                        if (createIconInputRef.current) createIconInputRef.current.value = "";
+                      }
+                    }}
+                  />
+                  <button
+                    className="rounded-md bg-zinc-800 px-3 py-2 text-xs text-zinc-200 hover:bg-zinc-700 disabled:opacity-50"
+                    onClick={() => createIconInputRef.current?.click()}
+                    type="button"
+                    disabled={isUploadingIcon}
+                  >
+                    {isUploadingIcon ? "上传中..." : icon ? "更换图标" : "上传图标"}
+                  </button>
+                  {icon && (
+                    <button
+                      className="rounded-md bg-zinc-800 px-3 py-2 text-xs text-zinc-200 hover:bg-zinc-700 disabled:opacity-50"
+                      onClick={() => setIcon("")}
+                      type="button"
+                      disabled={isUploadingIcon}
+                    >
+                      移除
+                    </button>
+                  )}
+                </div>
+                <p className="text-xs text-zinc-500">支持 PNG/JPG/SVG，建议正方形图标</p>
+              </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium text-zinc-300">描述（可选）</label>
                 <input
                   className="block w-full rounded-md border-0 bg-zinc-800 py-2 px-3 text-white shadow-sm ring-1 ring-inset ring-zinc-700 placeholder:text-zinc-400 focus:ring-2 focus:ring-inset focus:ring-indigo-500 sm:text-sm sm:leading-6"
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
+                  value={synopsis}
+                  onChange={(e) => setSynopsis(e.target.value)}
                 />
               </div>
               <div className="space-y-2">

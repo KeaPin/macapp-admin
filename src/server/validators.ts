@@ -20,7 +20,8 @@ export const resourceCreateSchema = z.object({
   title: z.string().min(1).max(200),
   url: z.string().url(),
   categoryId: z.coerce.number().int().positive().optional().nullable(),
-  description: z.string().max(2000).optional().nullable(),
+  synopsis: z.string().max(2000).optional().nullable(),
+  icon: z.string().url().optional().nullable(),
   status: statusEnum.optional().default("NORMAL"),
 });
 
@@ -29,7 +30,8 @@ export const resourceUpdateSchema = z.object({
   title: z.string().min(1).max(200).optional(),
   url: z.string().url().optional(),
   categoryId: z.coerce.number().int().positive().optional().nullable(),
-  description: z.string().max(2000).optional().nullable(),
+  synopsis: z.string().max(2000).optional().nullable(),
+  icon: z.string().url().optional().nullable(),
   status: statusEnum.optional(),
 });
 

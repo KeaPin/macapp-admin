@@ -2,6 +2,8 @@ import { Pool, PoolClient, QueryResult, QueryResultRow } from "pg";
 
 export type EnvWithHyperdrive = {
   HYPERDRIVE: { connectionString: string };
+  // 可选：R2 存储桶绑定（通过 wrangler r2_buckets 绑定）。
+  R2?: unknown;
 };
 
 declare global {
@@ -54,10 +56,27 @@ export async function ensureSchema(env: EnvWithHyperdrive): Promise<void> {
         id INTEGER PRIMARY KEY,
         name TEXT NOT NULL UNIQUE,
         description TEXT,
+        status TEXT NOT NULL DEFAULT 'NORMAL',
         created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
         updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
       );
     `);
+    // 兼容旧库：若曾误建为 synopsis 列，确保存在 description 列并在存在 synopsis 列时迁移
+    await client.query(`ALTER TABLE categories ADD COLUMN IF NOT EXISTS description TEXT;`);
+    await client.query(`
+      DO $$
+      BEGIN
+        IF EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_name = 'categories' AND column_name = 'synopsis'
+        ) THEN
+          UPDATE categories SET description = synopsis
+          WHERE description IS NULL AND synopsis IS NOT NULL;
+        END IF;
+      END
+      $$;
+    `);
+    await client.query(`ALTER TABLE categories ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'NORMAL';`);
     await client.query(`CREATE SEQUENCE IF NOT EXISTS categories_id_seq;`);
     await client.query(
       `ALTER TABLE categories ALTER COLUMN id SET DEFAULT nextval('categories_id_seq');`
@@ -73,11 +92,30 @@ export async function ensureSchema(env: EnvWithHyperdrive): Promise<void> {
         title TEXT NOT NULL,
         url TEXT NOT NULL,
         category_id INTEGER REFERENCES categories(id) ON DELETE SET NULL,
-        description TEXT,
+        synopsis TEXT,
+        icon TEXT,
+        status TEXT NOT NULL DEFAULT 'NORMAL',
         created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
         updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
       );
     `);
+    // 兼容旧库：若旧表为 description 列，补充 synopsis 并在存在 description 列时迁移数据
+    await client.query(`ALTER TABLE resources ADD COLUMN IF NOT EXISTS synopsis TEXT;`);
+    await client.query(`
+      DO $$
+      BEGIN
+        IF EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_name = 'resources' AND column_name = 'description'
+        ) THEN
+          UPDATE resources SET synopsis = description
+          WHERE synopsis IS NULL AND description IS NOT NULL;
+        END IF;
+      END
+      $$;
+    `);
+    await client.query(`ALTER TABLE resources ADD COLUMN IF NOT EXISTS icon TEXT;`);
+    await client.query(`ALTER TABLE resources ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'NORMAL';`);
     await client.query(`CREATE SEQUENCE IF NOT EXISTS resources_id_seq;`);
     await client.query(
       `ALTER TABLE resources ALTER COLUMN id SET DEFAULT nextval('resources_id_seq');`

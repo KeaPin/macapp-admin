@@ -59,6 +59,7 @@ export default function AdminSidebarNav() {
       {/* User info */}
       <div className="mt-auto">
         <div className="flex items-center gap-x-4 px-2 py-3 text-sm font-semibold leading-6 text-white">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             className="h-8 w-8 rounded-full bg-zinc-800"
             src="data:image/svg+xml,%3csvg width='100' height='100' xmlns='http://www.w3.org/2000/svg'%3e%3crect width='100' height='100' fill='%23374151'/%3e%3ctext x='50' y='50' font-size='40' text-anchor='middle' dy='.35em' fill='white'%3eA%3c/text%3e%3c/svg%3e"

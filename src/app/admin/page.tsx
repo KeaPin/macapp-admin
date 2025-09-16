@@ -28,12 +28,31 @@ export default function AdminDashboard() {
         fetch("/api/categories?page=1&pageSize=1"),
         fetch("/api/resources?page=1&pageSize=10"),
       ]);
-      const categories = (await categoriesRes.json()) as { total: number } | unknown;
-      const resources = (await resourcesRes.json()) as { items: Stats["recentResources"]; total: number } | unknown;
 
-      const totalCategories = typeof (categories as any)?.total === "number" ? (categories as any).total : 0;
-      const totalResources = typeof (resources as any)?.total === "number" ? (resources as any).total : 0;
-      const recentResources = Array.isArray((resources as any)?.items) ? (resources as any).items : [];
+      type CategoriesResponse = { total: number };
+      type ResourceListItem = {
+        id: number;
+        title: string;
+        url?: string;
+        category_id?: number | null;
+        description?: string | null;
+      };
+      type ResourcesResponse = { items: ResourceListItem[]; total: number };
+
+      const categoriesJson = (await categoriesRes.json()) as CategoriesResponse;
+      const resourcesJson = (await resourcesRes.json()) as ResourcesResponse;
+
+      const totalCategories = typeof categoriesJson?.total === "number" ? categoriesJson.total : 0;
+      const totalResources = typeof resourcesJson?.total === "number" ? resourcesJson.total : 0;
+      const recentResources: Stats["recentResources"] = Array.isArray(resourcesJson?.items)
+        ? resourcesJson.items.map((r) => ({
+            id: r.id,
+            title: r.title,
+            url: r.url ?? "#",
+            category_id: r.category_id ?? null,
+            description: r.description ?? null,
+          }))
+        : [];
 
       setStats({
         totalCategories,

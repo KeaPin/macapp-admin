@@ -24,10 +24,10 @@ async function main() {
   try {
     const categoriesSql = `
       SELECT * FROM (
-        SELECT id::double precision AS id, name, description
+        SELECT id::double precision AS id, name, description AS description
         FROM categories
         UNION ALL
-        SELECT (id)::double precision AS id, name, description
+        SELECT (id)::double precision AS id, name, description AS description
         FROM category
         WHERE id ~ '^[0-9]+$'
       ) t
@@ -59,15 +59,15 @@ async function main() {
           r.title                           AS title,
           r.url                             AS url,
           r.category_id::double precision   AS category_id,
-          r.description                     AS description
+          r.synopsis                        AS synopsis
         FROM resources r
         UNION ALL
         SELECT 
           (re.id)::double precision                                            AS id,
           re.name                                                              AS title,
-          COALESCE(rl.link, re.official_site, re.detail_url, '#')              AS url,
+          COALESCE(rl.link, '#')                                               AS url,
           CASE WHEN rc.cid ~ '^[0-9]+$' THEN (rc.cid)::double precision ELSE NULL END AS category_id,
-          COALESCE(re.synopsis, re.description)                                 AS description
+          NULL::text                                                           AS synopsis
         FROM resource re
         LEFT JOIN rl ON rl.resource_id = re.id
         LEFT JOIN rc ON rc.rid = re.id

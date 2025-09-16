@@ -18,8 +18,17 @@
   "hyperdrive": [
     {
       "binding": "HYPERDRIVE",
-      "id": "7a5048757e8c4bd2a878a23e183b3b86",
-      "localConnectionString": "postgresql://neondb_owner:npg_8RzObNjBJl3y@ep-hidden-mountain-adzqzboy-pooler.c-2.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
+      "id": "2fdd9226c2a74b2d99fa29e3d753ae7f",
+      "localConnectionString": "postgresql://neondb_owner:npg_eYJIsaqRz6W3@ep-ancient-feather-a1ec2ah1-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
     }
-  ]
+  ],
+  "r2_buckets": [
+    {
+      "binding": "R2",
+      "bucket_name": "macapp"
+    }
+  ],
+  "vars": {
+    "R2_PUBLIC_BASE": "https://image.gamesport.store"
+  }
 }
